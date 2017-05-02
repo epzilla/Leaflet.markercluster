@@ -32,6 +32,8 @@ L.MarkerCluster.include({
 
 		if (childMarkers.length >= this._circleSpiralSwitchover) {
 			positions = this._generatePointsSpiral(childMarkers.length, center);
+		} else if (this._group.options.spiderfyTree) {
+		  positions = this._generatePointsTree(childMarkers.length, center);
 		} else {
 			center.y += 10; // Otherwise circles look wrong => hack for standard blue icon, renders differently for other icons.
 			positions = this._generatePointsCircle(childMarkers.length, center);
@@ -48,6 +50,23 @@ L.MarkerCluster.include({
 		this._animationUnspiderfy(zoomDetails);
 
 		this._group._spiderfied = null;
+	},
+
+	_generatePointsTree: function (count, centerPt) {
+	  var distanceFromCenter = this._group.options.spiderfyTreeBranchDistance,
+	      markerDistance = this._group.options.spiderfyTreeBranchSeparation,
+	      lineLength = markerDistance * (count - 1),
+	      lineStart = centerPt.y - lineLength / 2,
+	      res = [],
+	      i;
+
+	  res.length = count;
+
+	  for (i = count - 1; i >= 0; i--) {
+	    res[i] = new L.Point(centerPt.x + distanceFromCenter, lineStart + markerDistance * i);
+	  }
+
+	  return res;
 	},
 
 	_generatePointsCircle: function (count, centerPt) {
@@ -231,7 +250,7 @@ L.MarkerCluster.include({
 			if (m.clusterHide) {
 				m.clusterHide();
 			}
-			
+
 			// Vectors just get immediately added
 			fg.addLayer(m);
 
@@ -251,7 +270,7 @@ L.MarkerCluster.include({
 			//Move marker to new position
 			m._preSpiderfyLatlng = m._latlng;
 			m.setLatLng(newPos);
-			
+
 			if (m.clusterShow) {
 				m.clusterShow();
 			}
