@@ -33,7 +33,7 @@ L.MarkerCluster.include({
 		if (childMarkers.length >= this._circleSpiralSwitchover) {
 			positions = this._generatePointsSpiral(childMarkers.length, center);
 		} else if (this._group.options.spiderfyTree) {
-		  positions = this._generatePointsTree(childMarkers.length, center);
+			positions = this._generatePointsTree(childMarkers.length, center);
 		} else {
 			center.y += 10; // Otherwise circles look wrong => hack for standard blue icon, renders differently for other icons.
 			positions = this._generatePointsCircle(childMarkers.length, center);
@@ -53,20 +53,20 @@ L.MarkerCluster.include({
 	},
 
 	_generatePointsTree: function (count, centerPt) {
-	  var distanceFromCenter = this._group.options.spiderfyTreeBranchDistance,
-	      markerDistance = this._group.options.spiderfyTreeBranchSeparation,
-	      lineLength = markerDistance * (count - 1),
-	      lineStart = centerPt.y - lineLength / 2,
-	      res = [],
-	      i;
+		var distanceFromCenter = this._group.options.spiderfyTreeBranchDistance,
+				markerDistance = this._group.options.spiderfyTreeBranchSeparation,
+				lineLength = markerDistance * (count - 1),
+				lineStart = centerPt.y - lineLength / 2,
+				res = [],
+				i;
 
-	  res.length = count;
+		res.length = count;
 
-	  for (i = count - 1; i >= 0; i--) {
-	    res[i] = new L.Point(centerPt.x + distanceFromCenter, lineStart + markerDistance * i);
-	  }
+		for (i = count - 1; i >= 0; i--) {
+			res[i] = new L.Point(centerPt.x + distanceFromCenter, lineStart + markerDistance * i);
+		}
 
-	  return res;
+		return res;
 	},
 
 	_generatePointsCircle: function (count, centerPt) {
