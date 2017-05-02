@@ -44,9 +44,10 @@ L.MarkerClusterGroup = L.FeatureGroup.extend({
 		polygonOptions: {},
 
 		// Options for our custom tree spiderfier
-		spiderfyTreeBranchDistance: 30,
 		spiderfyTree: true,
-		spiderfyTreeBranchSeparation: 45,
+		spiderfyTreeBranchLength: 45,
+		spiderfyTreeTrunkLength: 30,
+		spiderfyTreeBranchSeparation: 60,
 	},
 
 	initialize: function (options) {

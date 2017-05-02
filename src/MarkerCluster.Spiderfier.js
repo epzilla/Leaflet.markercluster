@@ -14,6 +14,9 @@ L.MarkerCluster.include({
 	_circleSpiralSwitchover: 9, //show spiral instead of circle from this marker count upwards.
 								// 0 -> always spiral; Infinity -> always circle
 
+	_treePolyLines: [],
+	_treeLinePoints: [],
+
 	spiderfy: function () {
 		if (this._group._spiderfied === this || this._group._inZoomAnimation) {
 			return;
@@ -33,7 +36,8 @@ L.MarkerCluster.include({
 		if (childMarkers.length >= this._circleSpiralSwitchover) {
 			positions = this._generatePointsSpiral(childMarkers.length, center);
 		} else if (this._group.options.spiderfyTree) {
-			positions = this._generatePointsTree(childMarkers.length, center);
+			positions = this._generateBranchPoints(childMarkers.length, center);
+			this._treeLinePoints = this._generateTrunkPoints(childMarkers.length, center);
 		} else {
 			center.y += 10; // Otherwise circles look wrong => hack for standard blue icon, renders differently for other icons.
 			positions = this._generatePointsCircle(childMarkers.length, center);
@@ -52,21 +56,45 @@ L.MarkerCluster.include({
 		this._group._spiderfied = null;
 	},
 
-	_generatePointsTree: function (count, centerPt) {
-		var distanceFromCenter = this._group.options.spiderfyTreeBranchDistance,
-				markerDistance = this._group.options.spiderfyTreeBranchSeparation,
-				lineLength = markerDistance * (count - 1),
-				lineStart = centerPt.y - lineLength / 2,
-				res = [],
-				i;
+	_generateBranchPoints: function (count, centerPt) {
+		var branchLength = this._group.options.spiderfyTreeBranchLength;
+		var markerDistance = this._group.options.spiderfyTreeBranchSeparation;
+		var trunkLength = this._group.options.spiderfyTreeTrunkLength;
+		var treeHeight = markerDistance * (count - 1);
+		var xStart = centerPt.x + trunkLength;
+		var yStart = centerPt.y - (treeHeight / 2);
 
-		res.length = count;
+		var res = [];
 
-		for (i = count - 1; i >= 0; i--) {
-			res[i] = new L.Point(centerPt.x + distanceFromCenter, lineStart + markerDistance * i);
+		for (var i = count - 1; i >= 0; i--) {
+			res.push({
+				start: new L.Point(xStart, yStart + markerDistance * i),
+				end: new L.Point(xStart + branchLength, yStart + markerDistance * i)
+			});
 		}
 
 		return res;
+	},
+
+	_generateTrunkPoints: function (count, centerPt) {
+		var markerDistance = this._group.options.spiderfyTreeBranchSeparation;
+		var trunkLength = this._group.options.spiderfyTreeTrunkLength;
+		var treeHeight = markerDistance * (count - 1);
+		var xStart = centerPt.x + trunkLength;
+		var yStart = centerPt.y - (treeHeight / 2);
+
+		// Initial line is the "trunk", from the center point out to the right
+		// Next is the "main branch"
+		return [
+			{
+				start: new L.Point(centerPt.x, centerPt.y),
+				end: new L.Point(xStart, centerPt.y)
+			},
+			{
+				start: new L.Point(xStart, yStart),
+				end: new L.Point(xStart, yStart + treeHeight)
+			}
+		];
 	},
 
 	_generatePointsCircle: function (count, centerPt) {
@@ -221,16 +249,35 @@ L.MarkerCluster.include({
 
 		group._ignoreMove = true;
 
+		// Draw the trunk and "main branch" if it's a tree view
+		if (group.options.spiderfyTree) {
+			me._treePolyLines = me._treeLinePoints.map(function (line) {
+				var startPoint = map.layerPointToLatLng(line.start);
+				var endPoint = map.layerPointToLatLng(line.end);
+				leg = new L.Polyline([startPoint, endPoint], legOptions);
+				leg.bringToFront();
+				map.addLayer(leg);
+				return leg;
+			});
+		}
+
 		// Add markers and spider legs to map, hidden at our center point.
 		// Traverse in ascending order to make sure that inner circleMarkers are on top of further legs. Normal markers are re-ordered by newPosition.
 		// The reverse order trick no longer improves performance on modern browsers.
 		for (i = 0; i < childMarkers.length; i++) {
 			m = childMarkers[i];
 
-			newPos = map.layerPointToLatLng(positions[i]);
-
 			// Add the leg before the marker, so that in case the latter is a circleMarker, the leg is behind it.
-			leg = new L.Polyline([thisLayerLatLng, newPos], legOptions);
+			// If it's a tree view, we want to draw a "branch" instead of a "spider leg"
+			if (group.options.spiderfyTree && positions[i].start !== undefined) {
+				var start = map.layerPointToLatLng(positions[i].start);
+				var end = map.layerPointToLatLng(positions[i].end);
+				leg = new L.Polyline([start, end], legOptions);
+			} else {
+				newPos = map.layerPointToLatLng(positions[i]);
+				leg = new L.Polyline([thisLayerLatLng, newPos], legOptions);
+			}
+
 			map.addLayer(leg);
 			m._spiderLeg = leg;
 
@@ -264,7 +311,11 @@ L.MarkerCluster.include({
 
 		// Reveal markers and spider legs.
 		for (i = childMarkers.length - 1; i >= 0; i--) {
-			newPos = map.layerPointToLatLng(positions[i]);
+			if (group.options.spiderfyTree && positions[i].start !== undefined) {
+				newPos = map.layerPointToLatLng(positions[i].end);
+			} else {
+				newPos = map.layerPointToLatLng(positions[i]);
+			}
 			m = childMarkers[i];
 
 			//Move marker to new position
@@ -284,6 +335,7 @@ L.MarkerCluster.include({
 				leg.setStyle({opacity: finalLegOpacity});
 			}
 		}
+
 		this.setOpacity(0.3);
 
 		group._ignoreMove = false;
@@ -349,6 +401,12 @@ L.MarkerCluster.include({
 				legPath.style.strokeDashoffset = legLength;
 				leg.setStyle({opacity: 0});
 			}
+		}
+
+		if (group.options.spiderfyTree && me._treePolyLines && me._treePolyLines.length > 0) {
+			me._treePolyLines.forEach(function (line) {
+				map.removeLayer(line);
+			});
 		}
 
 		group._ignoreMove = false;
