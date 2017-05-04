@@ -2107,7 +2107,7 @@ L.MarkerCluster.include({
 	_spiralLengthStart: 11,
 	_spiralLengthFactor: 5,
 
-	_circleSpiralSwitchover: 9, //show spiral instead of circle from this marker count upwards.
+	_circleSpiralSwitchover: 20, //show spiral instead of circle from this marker count upwards.
 								// 0 -> always spiral; Infinity -> always circle
 
 	_treePolyLines: [],
